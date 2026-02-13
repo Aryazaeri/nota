@@ -1,98 +1,252 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { createSemester, subscribeToSemesters } from '@/src/services/binder';
+import { Semester } from '@/src/types/binder';
+import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Alert, FlatList, Keyboard, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, useWindowDimensions, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+export default function TabOneScreen() {
+  const router = useRouter();
+  const [semesters, setSemesters] = useState<Semester[]>([]);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [newSemesterTitle, setNewSemesterTitle] = useState('');
 
-export default function HomeScreen() {
+  const { width } = useWindowDimensions();
+  const isWeb = Platform.OS === 'web';
+  const effectiveWidth = isWeb && width > 768 ? width - 250 : width; // account for sidebar
+  const numColumns = isWeb && effectiveWidth > 1000 ? 4 : isWeb && effectiveWidth > 700 ? 3 : isWeb && effectiveWidth > 500 ? 2 : 1;
+
+  useEffect(() => {
+    const unsubscribe = subscribeToSemesters((data) => {
+      setSemesters(data);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleCreateSemester = async () => {
+    if (!newSemesterTitle.trim()) return;
+    try {
+      await createSemester(newSemesterTitle, Date.now(), Date.now() + 1000 * 60 * 60 * 24 * 90); // default 90 days
+      setNewSemesterTitle('');
+      setIsModalVisible(false);
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    }
+  };
+
+  const renderSemester = ({ item }: { item: Semester }) => (
+    <TouchableOpacity
+      style={[styles.card, numColumns > 1 && { flex: 1, margin: 8 }]}
+      onPress={() => {
+        router.push({
+          pathname: '/semester/[id]',
+          params: { id: item.id, title: item.title }
+        });
+      }}
+    >
+      <View style={styles.cardHeader}>
+        <Text style={styles.cardTitle}>{item.title}</Text>
+        {item.isActive && <View style={styles.activeBadge}><Text style={styles.activeText}>Active</Text></View>}
+      </View>
+      <Text style={styles.cardSubtitle}>Tap to view courses</Text>
+    </TouchableOpacity>
+  );
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <SafeAreaView style={styles.container}>
+      <View style={[styles.activeContainer, isWeb && styles.webContainer]}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>My Binders</Text>
+          <TouchableOpacity style={styles.addButton} onPress={() => setIsModalVisible(true)}>
+            <Text style={styles.addButtonText}>+ New</Text>
+          </TouchableOpacity>
+        </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        <FlatList
+          key={numColumns} // Force re-render on column change
+          data={semesters}
+          renderItem={renderSemester}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.listContent}
+          numColumns={numColumns}
+          columnWrapperStyle={numColumns > 1 ? { justifyContent: 'flex-start', gap: 16 } : undefined}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>No semesters yet. Start by adding one!</Text>
+            </View>
+          }
+        />
+      </View>
+
+      <Modal
+        visible={isModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsModalVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>New Semester</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ex: Fall 2024"
+                placeholderTextColor="#666"
+                value={newSemesterTitle}
+                onChangeText={setNewSemesterTitle}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={handleCreateSemester}
+              />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity style={styles.cancelButton} onPress={() => setIsModalVisible(false)}>
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.createButton} onPress={handleCreateSemester}>
+                  <Text style={styles.createButtonText}>Create</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: '#0A0A0A',
   },
-  stepContainer: {
-    gap: 8,
+  activeContainer: {
+    flex: 1,
+  },
+  webContainer: {
+    width: '100%',
+    maxWidth: 1024,
+    alignSelf: 'center',
+    paddingHorizontal: 20,
+  },
+  header: {
+    paddingVertical: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  addButton: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  addButtonText: {
+    color: '#000',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  listContent: {
+    padding: 20,
+  },
+  card: {
+    backgroundColor: '#1A1A1A',
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    color: '#888',
+  },
+  activeBadge: {
+    backgroundColor: '#32CD32', // Lime Green
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  activeText: {
+    color: '#000',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  emptyState: {
+    marginTop: 100,
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: '#666',
+    fontSize: 16,
+  },
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 24,
+  },
+  input: {
+    backgroundColor: '#0A0A0A',
+    borderRadius: 12,
+    padding: 16,
+    color: '#fff',
+    fontSize: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  cancelButton: {
+    padding: 12,
+  },
+  cancelButtonText: {
+    color: '#888',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  createButton: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  createButtonText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
