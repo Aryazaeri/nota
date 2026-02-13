@@ -1,50 +1,65 @@
-# Welcome to your Expo app 👋
+# Nota
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**Nota** is a comprehensive study companion app built with Expo and React Native. It organizes your academic life by semesters and courses, offering tools for note-taking and flashcards to boost your learning.
 
-## Get started
+![Project Status](https://img.shields.io/badge/status-active-success)
+![License](https://img.shields.io/badge/license-MIT-blue)
 
-1. Install dependencies
+## 📚 Features
 
-   ```bash
-   npm install
-   ```
+- **Semester Management**: Organize your courses by active semesters (e.g., "Fall 2024").
+- **Course Organization**: Create binders for each course to keep materials sorted.
+- **Flashcards**: Built-in flashcard tool for active recall study sessions.
+- **Note Taking**: Rich text or markdown support for lecture notes.
+- **Cross-Platform**: Runs on iOS, Android, and Web via Expo.
+- **Cloud Sync**: (In Progress) Firebase integration for data persistence across devices.
 
-2. Start the app
+## 🛠️ Tech Stack
 
-   ```bash
-   npx expo start
-   ```
+- **Framework**: [Expo](https://expo.dev/) (React Native)
+- **Navigation**: [Expo Router](https://docs.expo.dev/router/introduction/) (File-based routing)
+- **Backend**: [Firebase](https://firebase.google.com/) (Firestore/Auth)
+- **Language**: TypeScript
 
-In the output, you'll find options to open the app in a
+## 🏁 Getting Started
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### Prerequisites
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+- Node.js 18+
+- npm or yarn
 
-## Get a fresh project
+### Installation
 
-When you're ready, run:
+1.  **Clone the repository**
+    ```bash
+    git clone https://github.com/yourusername/nota.git
+    cd nota
+    ```
 
-```bash
-npm run reset-project
-```
+2.  **Install dependencies**
+    ```bash
+    npm install
+    ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+3.  **Run Development Server**
+    ```bash
+    npx expo start
+    ```
+    - Press `i` for iOS Simulator
+    - Press `a` for Android Emulator
+    - Press `w` for Web
 
-## Learn more
+## 📱 Architecture
 
-To learn more about developing your project with Expo, look at the following resources:
+- `app/`: File-based routes (screens).
+- `components/`: Reusable UI components.
+- `services/`: Firebase and business logic.
+- `types/`: TypeScript definitions.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## 🤝 Contributing
 
-## Join the community
+Contributions are welcome! Please fork the repository and submit a pull request.
 
-Join our community of developers creating universal apps.
+## 📄 License
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+This project is licensed under the MIT License.
