@@ -13,12 +13,17 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: BottomTabBa
 
     const isDesktop = width > 768;
 
+    const visibleRoutes = state.routes.filter(
+        (route) => (descriptors[route.key].options as any).href !== null
+    );
+
     if (isDesktop) {
         return (
             <View style={styles.sidebarContainer}>
                 <View style={styles.sidebarContent}>
                     <Text style={styles.sidebarHeader}>Nota</Text>
-                    {state.routes.map((route, index) => {
+                    {visibleRoutes.map((route) => {
+                        const index = state.routes.findIndex((r) => r.key === route.key);
                         const { options } = descriptors[route.key];
                         const label =
                             options.tabBarLabel !== undefined
@@ -84,7 +89,8 @@ export function ResponsiveTabBar({ state, descriptors, navigation }: BottomTabBa
     // Mobile Bottom Tab Bar
     return (
         <View style={[styles.tabBar, { paddingBottom: insets.bottom + 8 }]}>
-            {state.routes.map((route, index) => {
+            {visibleRoutes.map((route) => {
+                        const index = state.routes.findIndex((r) => r.key === route.key);
                 const { options } = descriptors[route.key];
                 const isFocused = state.index === index;
 
