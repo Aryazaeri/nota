@@ -1,252 +1,173 @@
-import { createSemester, subscribeToSemesters } from '@/src/services/binder';
-import { Semester } from '@/src/types/binder';
+import { generateFlashcards } from '@/src/services/ai';
+import { createDeck } from '@/src/services/decks';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Alert, FlatList, Keyboard, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, useWindowDimensions, View } from 'react-native';
+import { useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-export default function TabOneScreen() {
+export default function GenerateScreen() {
   const router = useRouter();
-  const [semesters, setSemesters] = useState<Semester[]>([]);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [newSemesterTitle, setNewSemesterTitle] = useState('');
+  const [text, setText] = useState('');
+  const [title, setTitle] = useState('');
+  const [count, setCount] = useState(10);
+  const [loading, setLoading] = useState(false);
 
-  const { width } = useWindowDimensions();
   const isWeb = Platform.OS === 'web';
-  const effectiveWidth = isWeb && width > 768 ? width - 250 : width; // account for sidebar
-  const numColumns = isWeb && effectiveWidth > 1000 ? 4 : isWeb && effectiveWidth > 700 ? 3 : isWeb && effectiveWidth > 500 ? 2 : 1;
+  const charCount = text.length;
+  const canGenerate = charCount >= 50 && !loading;
 
-  useEffect(() => {
-    const unsubscribe = subscribeToSemesters((data) => {
-      setSemesters(data);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const handleCreateSemester = async () => {
-    if (!newSemesterTitle.trim()) return;
+  const handleGenerate = async () => {
+    if (!canGenerate) return;
+    setLoading(true);
     try {
-      await createSemester(newSemesterTitle, Date.now(), Date.now() + 1000 * 60 * 60 * 24 * 90); // default 90 days
-      setNewSemesterTitle('');
-      setIsModalVisible(false);
+      const cards = await generateFlashcards(text.trim(), count);
+      const deckTitle = title.trim() || autoTitle(text);
+      const deckId = await createDeck(deckTitle, cards);
+      setText('');
+      setTitle('');
+      router.push({ pathname: '/deck/[id]', params: { id: deckId } });
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      Alert.alert('Could not generate', e?.message ?? 'Unknown error');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const renderSemester = ({ item }: { item: Semester }) => (
-    <TouchableOpacity
-      style={[styles.card, numColumns > 1 && { flex: 1, margin: 8 }]}
-      onPress={() => {
-        router.push({
-          pathname: '/semester/[id]',
-          params: { id: item.id, title: item.title }
-        });
-      }}
-    >
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>{item.title}</Text>
-        {item.isActive && <View style={styles.activeBadge}><Text style={styles.activeText}>Active</Text></View>}
-      </View>
-      <Text style={styles.cardSubtitle}>Tap to view courses</Text>
-    </TouchableOpacity>
-  );
-
   return (
     <SafeAreaView style={styles.container}>
-      <View style={[styles.activeContainer, isWeb && styles.webContainer]}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>My Binders</Text>
-          <TouchableOpacity style={styles.addButton} onPress={() => setIsModalVisible(true)}>
-            <Text style={styles.addButtonText}>+ New</Text>
-          </TouchableOpacity>
+      <ScrollView
+        contentContainerStyle={[styles.content, isWeb && styles.webContent]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.h1}>Notes → Flashcards</Text>
+        <Text style={styles.sub}>Paste your lecture notes. We'll turn them into a study deck.</Text>
+
+        <TextInput
+          style={styles.titleInput}
+          placeholder="Deck title (optional)"
+          placeholderTextColor="#555"
+          value={title}
+          onChangeText={setTitle}
+          maxLength={80}
+        />
+
+        <TextInput
+          style={styles.textarea}
+          placeholder="Paste lecture notes, a textbook section, a study guide..."
+          placeholderTextColor="#555"
+          value={text}
+          onChangeText={setText}
+          multiline
+          textAlignVertical="top"
+        />
+
+        <View style={styles.row}>
+          <Text style={styles.meta}>
+            {charCount} chars {charCount < 50 ? `· need ${50 - charCount} more` : ''}
+          </Text>
+          <View style={styles.countRow}>
+            <Text style={styles.countLabel}>Cards:</Text>
+            {[5, 10, 20].map((n) => (
+              <TouchableOpacity
+                key={n}
+                onPress={() => setCount(n)}
+                style={[styles.countChip, count === n && styles.countChipActive]}
+              >
+                <Text style={[styles.countChipText, count === n && styles.countChipTextActive]}>{n}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
-        <FlatList
-          key={numColumns} // Force re-render on column change
-          data={semesters}
-          renderItem={renderSemester}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContent}
-          numColumns={numColumns}
-          columnWrapperStyle={numColumns > 1 ? { justifyContent: 'flex-start', gap: 16 } : undefined}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>No semesters yet. Start by adding one!</Text>
-            </View>
-          }
-        />
-      </View>
-
-      <Modal
-        visible={isModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setIsModalVisible(false)}
-      >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>New Semester</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ex: Fall 2024"
-                placeholderTextColor="#666"
-                value={newSemesterTitle}
-                onChangeText={setNewSemesterTitle}
-                autoFocus
-                returnKeyType="done"
-                onSubmitEditing={handleCreateSemester}
-              />
-              <View style={styles.modalButtons}>
-                <TouchableOpacity style={styles.cancelButton} onPress={() => setIsModalVisible(false)}>
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.createButton} onPress={handleCreateSemester}>
-                  <Text style={styles.createButtonText}>Create</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
+        <TouchableOpacity
+          style={[styles.button, !canGenerate && styles.buttonDisabled]}
+          onPress={handleGenerate}
+          disabled={!canGenerate}
+        >
+          {loading ? (
+            <ActivityIndicator color="#000" />
+          ) : (
+            <Text style={styles.buttonText}>Generate flashcards</Text>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
+function autoTitle(text: string): string {
+  const firstLine = text.split('\n')[0]?.trim() ?? '';
+  if (firstLine.length > 0 && firstLine.length <= 60) return firstLine;
+  const words = text.trim().split(/\s+/).slice(0, 6).join(' ');
+  return words || 'Untitled deck';
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0A0A',
-  },
-  activeContainer: {
-    flex: 1,
-  },
-  webContainer: {
-    width: '100%',
-    maxWidth: 1024,
-    alignSelf: 'center',
-    paddingHorizontal: 20,
-  },
-  header: {
-    paddingVertical: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#fff',
-  },
-  addButton: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  addButtonText: {
-    color: '#000',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  listContent: {
-    padding: 20,
-  },
-  card: {
+  container: { flex: 1, backgroundColor: '#0A0A0A' },
+  content: { padding: 20, paddingBottom: 60 },
+  webContent: { width: '100%', maxWidth: 720, alignSelf: 'center' },
+  h1: { fontSize: 32, fontWeight: '800', color: '#fff', marginTop: 12 },
+  sub: { fontSize: 15, color: '#888', marginTop: 6, marginBottom: 24 },
+  titleInput: {
     backgroundColor: '#1A1A1A',
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#333',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  cardSubtitle: {
-    fontSize: 14,
-    color: '#888',
-  },
-  activeBadge: {
-    backgroundColor: '#32CD32', // Lime Green
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  activeText: {
-    color: '#000',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  emptyState: {
-    marginTop: 100,
-    alignItems: 'center',
-  },
-  emptyText: {
-    color: '#666',
-    fontSize: 16,
-  },
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 20,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 24,
-  },
-  input: {
-    backgroundColor: '#0A0A0A',
     borderRadius: 12,
-    padding: 16,
+    padding: 14,
     color: '#fff',
     fontSize: 16,
-    marginBottom: 24,
+    marginBottom: 12,
+  },
+  textarea: {
+    backgroundColor: '#1A1A1A',
     borderWidth: 1,
     borderColor: '#333',
+    borderRadius: 12,
+    padding: 14,
+    color: '#fff',
+    fontSize: 15,
+    minHeight: 240,
+    marginBottom: 12,
+    lineHeight: 22,
   },
-  modalButtons: {
+  row: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    flexWrap: 'wrap',
     gap: 12,
   },
-  cancelButton: {
-    padding: 12,
+  meta: { color: '#666', fontSize: 13 },
+  countRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  countLabel: { color: '#888', fontSize: 13, marginRight: 4 },
+  countChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+    backgroundColor: '#1A1A1A',
   },
-  cancelButtonText: {
-    color: '#888',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  createButton: {
+  countChipActive: { backgroundColor: '#fff', borderColor: '#fff' },
+  countChipText: { color: '#888', fontSize: 13, fontWeight: '600' },
+  countChipTextActive: { color: '#000' },
+  button: {
     backgroundColor: '#fff',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: 'center',
   },
-  createButtonText: {
-    color: '#000',
-    fontSize: 16,
-    fontWeight: '700',
-  },
+  buttonDisabled: { backgroundColor: '#333' },
+  buttonText: { color: '#000', fontSize: 17, fontWeight: '700' },
 });

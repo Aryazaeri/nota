@@ -15,14 +15,20 @@ export default function TabLayout() {
         tabBar={(props) => <ResponsiveTabBar {...props} />}
         screenOptions={{
           headerShown: false,
-          // Hide default tab bar since we are using a custom one
           tabBarStyle: { display: 'none' },
         }}>
         <Tabs.Screen
           name="index"
           options={{
-            title: 'Binders',
-            tabBarIcon: ({ color }) => <IconSymbol size={24} name="folder.fill" color={color} />,
+            title: 'Generate',
+            tabBarIcon: ({ color }) => <IconSymbol size={24} name="sparkles" color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="decks"
+          options={{
+            title: 'Decks',
+            tabBarIcon: ({ color }) => <IconSymbol size={24} name="rectangle.stack.fill" color={color} />,
           }}
         />
         <Tabs.Screen
@@ -32,6 +38,7 @@ export default function TabLayout() {
             tabBarIcon: ({ color }) => <IconSymbol size={24} name="person.fill" color={color} />,
           }}
         />
+        <Tabs.Screen name="explore" options={{ href: null }} />
       </Tabs>
     </View>
   );
