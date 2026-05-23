@@ -32,6 +32,20 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
+
+# Claude Code
+.claude/
+
+# scratch
+chatgppt_recs_*.md
+
+# Netlify Functions deps
+netlify/functions/node_modules/
+
+# Firebase Functions build
+functions/lib/
+functions/node_modules/
 
 # typescript
 *.tsbuildinfo

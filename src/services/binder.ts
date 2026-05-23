@@ -18,7 +18,7 @@ const getUserId = () => {
 export const createSemester = async (title: string, startDate: number, endDate: number) => {
     const userId = getUserId();
     console.log(`BinderService: Creating semester '${title}' for user ${userId}`);
-    const semestersRef = collection(db, `users / ${userId}/semesters`);
+    const semestersRef = collection(db, `users/${userId}/semesters`);
     try {
         const docRef = await addDoc(semestersRef, {
             title,
